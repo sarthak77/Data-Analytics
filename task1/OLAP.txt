@@ -1,0 +1,64 @@
+#############################################################################
+
+#average first innings score by csk against all other teams
+
+select a.team_bowling as bowling_team_id,t.team_name as opponent,avg(a.score) as 1st_inn_bat_avg
+from team t,
+(
+select b.match_id,b.team_bowling,sum(b.runs_scored)+sum(b.extras_runs) as score
+from ball_by_ball b,team t
+where b.innings_no=1 and b.team_batting=t.team_id and t.team_name='Chennai Super Kings'
+group by b.match_id,b.team_bowling
+order by b.team_bowling
+)a
+where a.team_bowling=t.team_id
+group by team_bowling
+with rollup;
+
+#############################################################################
+
+#no of matches won batting first by every team against every team
+
+select t1.match_id,t.team_name as bat_first,tt.team_name as bat_second,t1.inn1,t2.inn2,count(*) as no_of_wins_bat_first
+from team t, team tt,
+(
+    select b.match_id,b.team_batting as inn1,sum(b.runs_scored)+sum(b.extras_runs) as batfirst
+    from ball_by_ball b
+    where b.innings_no=1
+    group by b.match_id
+)t1
+join
+(
+    select b.match_id,b.team_batting as inn2,sum(b.runs_scored)+sum(b.extras_runs) as batsecond
+    from ball_by_ball b
+    where b.innings_no=2
+    group by b.match_id
+)t2
+on
+t1.match_id=t2.match_id
+where t1.batfirst>t2.batsecond and t1.inn1!=t2.inn2 and t.team_id=t1.inn1 and tt.team_id=t2.inn2
+group by inn1,inn2
+with rollup;
+
+#############################################################################
+
+#average of virat kohli against other teams in away matches
+
+select opponent,matches,runs,runs div matches as 'bat_avg'
+from
+(
+select opponent,Count(*) as matches, sum(runs) as runs
+from
+(
+select b.match_id,sum(b.runs_scored) as runs,b.team_bowling,t.team_name as opponent
+from ball_by_ball b, player p,team t,matches m,venue v
+where p.player_id=b.striker and b.team_bowling=t.team_id and b.match_id=m.match_id and m.venue_name=v.venue_name and v.city_name!='Bengaluru' and p.player_name='V Kohli' 
+group by b.match_id,b.team_bowling
+order by b.team_bowling
+)t1
+group by opponent
+with rollup
+)t2
+order by runs div matches;
+
+#############################################################################
